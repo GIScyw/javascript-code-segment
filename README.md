@@ -1,5 +1,5 @@
 # javascript-code-segment
-前端面试之手写代码
+
 
 本系列会从面试的角度出发围绕JavaScript，Node.js(npm包)以及框架三个方面来对常见的模拟实现进行总结，具体源代码放在github项目上，长期更新和维护
 ![前端面试常见手写](./images/1.png)
