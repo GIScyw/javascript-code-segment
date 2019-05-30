@@ -723,7 +723,655 @@ var jsonStr = '{ "age": 20, "name": "jack" }'
 var json = (new Function('return ' + jsonStr))();
 ```
 
+# 创建对象
 
+创建自定义对象最简单的方式就是创建一个`Object`的实例，然后再为它添加属性和方法，早期的开发人员经常使用这种模式来创建对象，后来对象字面量的方法成了创建对象的首选模式。虽然`object构造函数`或者`对象字面量`的方法都可以用来创建对象，但是这些方法使用同一个接口创建很多对象，会产生大量的重复代码。为了解决这个问题，人们开始使用各种模式来创建对象，在这些模式中，一般推荐使用四种方式，包括`构造函数模式`、`原型模式`、`构造函数和原型组合模式`，`动态原型模式`，其他的方式，包括`工厂模式`、`寄生构造函数模式`、`稳妥构造函数模式`平时使用的较少。而这些方式中，用的最多最推荐的应是**组合模式和动态原型模式**
+
+### 构造函数和原型组合模式
+
+**优点：**
+
+1. 解决了原型模式对于引用对象的缺点
+2. 解决了原型模式没有办法传递参数的缺点
+3. 解决了构造函数模式不能共享方法的缺点
+
+```javascript
+function Person(name) {
+  this.name = name
+  this.friends = ['lilei']
+}
+Person.prototype.say = function() {
+  console.log(this.name)
+}
+
+var person1 = new Person('hanmeimei')
+person1.say() //hanmeimei
+```
+
+### 动态原型模式
+
+**优点：**
+
+1. 可以在初次调用构造函数的时候就完成原型对象的修改
+2. 修改能体现在所有的实例中
+
+```javascript
+function Person(name) {
+  this.name = name
+    // 检测say 是不是一个函数
+    // 实际上只在当前第一次时候没有创建的时候在原型上添加sayName方法
+    //因为构造函数执行时，里面的代码都会执行一遍，而原型有一个就行，不用每次都重复，所以仅在第一执行时生成一个原型，后面执行就不必在生成，所以就不会执行if包裹的函数，
+//其次为什么不能再使用字面量的写法，我们都知道，使用构造函数其实是把new出来的对象作用域绑定在构造函数上，而字面量的写法，会重新生成一个新对象，就切断了两者的联系！
+  if(typeof this.say != 'function') {
+    Person.prototype.say = function(
+    alert(this.name)
+  }
+}
+```
+# 继承
+
+`原型链继承`不仅会带来引用缺陷，而且我们也无法为不同的实例初始化继承来的属性；`构造函数继承`方式可以避免类式继承的缺陷，但是我们无法获取到父类的共有方法，也就是通过原型prototype绑定的方法；`组合继承`解决了上面两种方式的存在的问题，但是它调用了两次父类的构造函数；`寄生组合式继承`强化的部分就是在组合继承的基础上减少一次多余的调用父类的构造函数。**推荐使用组合继承方式、寄生组合方式和ES6 extends继承，建议在实际生产中直接使用ES6的继承方式。**
+
+### 组合继承
+
+```javascript
+// 声明父类   
+function Animal(color) {    
+  this.name = 'animal';    
+  this.type = ['pig','cat'];    
+  this.color = color;   
+}     
+
+// 添加共有方法  
+Animal.prototype.greet = function(sound) {    
+  console.log(sound);   
+}     
+
+// 声明子类   
+function Dog(color) { 
+  // 构造函数继承    
+  Animal.apply(this, arguments);   
+}   
+
+// 类式继承
+Dog.prototype = new Animal();   
+
+var dog = new Dog('白色');   
+var dog2 = new Dog('黑色');     
+
+dog.type.push('dog');   
+console.log(dog.color); // "白色"
+console.log(dog.type);  // ["pig", "cat", "dog"]
+
+console.log(dog2.type); // ["pig", "cat"]
+console.log(dog2.color);  // "黑色"
+dog.greet('汪汪');  // "汪汪"
+```
+
+注：组合继承利用上面的方式会使得两次调用父类构造函数，其实我们可以通过Dog.prototype = Animal.prototype; Dog.prototype.constructor = Dog来优化组合继承，当然终极优化方式就是下面的寄生组合方式。想要了解组合继承具体优化的可以参考 [深入理解JavaScript原型链与继承](https://juejin.im/post/5c08ba1ff265da612577e862)
+
+### 寄生组合继承
+
+```javascript
+function Animal(color) {
+  this.color = color;
+  this.name = 'animal';
+  this.type = ['pig', 'cat'];
+}
+
+Animal.prototype.greet = function(sound) {
+  console.log(sound);
+}
+
+
+function Dog(color) {
+  Animal.apply(this, arguments);
+  this.name = 'dog';
+}
+/* 注意下面两行 */
+Dog.prototype = Object.create(Animal.prototype);
+Dog.prototype.constructor = Dog;
+
+Dog.prototype.getName = function() {
+  console.log(this.name);
+}
+
+
+var dog = new Dog('白色');   
+var dog2 = new Dog('黑色');     
+
+dog.type.push('dog');   
+console.log(dog.color);   // "白色"
+console.log(dog.type);   // ["pig", "cat", "dog"]
+
+console.log(dog2.type);  // ["pig", "cat"]
+console.log(dog2.color);  // "黑色"
+dog.greet('汪汪');  //  "汪汪"
+```
+
+Object.create()的浅拷贝的作用类式下面的函数：
+
+```javascript
+function create(obj) {
+  function F() {};
+  F.prototype = obj;
+  return new F();
+}
+```
+
+需注意一点，由于对Animal的原型进行了拷贝后赋给Dog.prototype，因此Dog.prototype上的`constructor`属性也被重写了，所以我们要修复这一个问题：
+
+```javascript
+Dog.prototype.constructor = Dog;
+```
+
+### extends继承
+
+```javascript
+class Animal {   
+  constructor(color) {   
+    this.color = color;   
+  }   
+  greet(sound) {   
+    console.log(sound);   
+  }  
+}   
+
+class Dog extends Animal {   
+  constructor(color) {   
+    super(color);   
+    this.color = color;   
+  }  
+}   
+
+let dog = new Dog('黑色');  
+dog.greet('汪汪');  // "汪汪"
+console.log(dog.color); // "黑色"
+```
+
+# 模拟ajax
+
+- `ajax`请求过程：创建`XMLHttpRequest`对象、连接服务器、发送请求、接收响应数据
+- 创建后的`XMLHttpRequest`对象实例拥有很多方法和属性
+  - `open`方法类似于初始化，并不会发起真正的请求；`send`方发送请求，并接受一个可选参数
+  - 当请求方式为`post`时，可以将请求体的参数传入；当请求方式为`get`时，可以不传或传入`null`;
+  - 不管是`get`和`post`，参数都需要通过`encodeURIComponent`编码后拼接
+
+### 通用版
+
+```javascript
+//对请求data进行格式化处理
+function formateData(data) {
+    let arr = [];
+    for (let key in data) {
+        //避免有&,=,?字符，对这些字符进行序列化
+        arr.push(encodeURIComponent(key) + '=' + data[key])
+    }
+    return arr.join('&');
+}
+
+function ajax(params) {
+    //先对params进行处理，防止为空
+    params = params || {};
+    params.data = params.data || {};
+
+    //普通GET,POST请求
+    params.type = (params.type || 'GET').toUpperCase();
+    params.data = formateData(params.data);
+    //如果是在ie6浏览器，那么XMLHttoRequest是不存在的，应该调用ActiveXObject；
+    let xhr = XMLHttpRequest ? new XMLHttpRequest() : new ActiveXObject('Microsoft.XMLHTTP');
+    if (params.type === 'GET') {
+        xhr.open(params.type, params.url + '?' + params.data, true);
+        xhr.send();
+    } else {
+        xhr.open(params.type, params.url, true);
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
+        xhr.send(params.data);
+    }
+    // 这里有两种写法，第一种写法：当xhr.readyState===4的时候，会触发onload事件，直接通过onload事件 进行回调函数处理
+    xhr.onload = function () {
+        if (xhr.status === 200 || xhr.status === 304 || xhr.status === 206) {
+            var res;
+
+            if (params.success && params.success instanceof Function) {
+                res = JSON.parse(xhr.responseText);
+                params.success.call(xhr, res);
+            }
+        } else {
+            if (params.error && params.error instanceof Function) {
+                res = xhr.responseText;
+                params.error.call(xhr, res);
+            }
+        }
+
+    }
+    //第二种写法，当xhr.readyState===4时候，说明请求成功返回了，进行成功回调
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            // 进行onload里面的处理函数
+        }
+    }
+
+}
+```
+
+### promise版
+
+```javascript
+// 使用promise实现一个简单的ajax
+
+/**
+ * 首先，可能会使用到的xhr方法或者说属性
+ * onloadstart // 开始发送时触发
+ * onloadend   // 发送结束时触发，无论成功不成功
+ * onload      // 得到响应
+ * onprogress  // 从服务器上下载数据，每50ms触发一次
+ * onuploadprogress // 上传到服务器的回调
+ * onerror     // 请求错误时触发
+ * onabort     // 调用abort时候触发
+ * status      // 返回状态码
+ * setRequestHeader // 设置请求头
+ * responseType // 请求传入的数据
+ */
+
+// 默认的ajax参数
+let ajaxDefaultOptions = {
+  url: '#', // 请求地址，默认为空
+  method: 'GET', // 请求方式，默认为GET请求
+  async: true, // 请求同步还是异步，默认异步
+  timeout: 0, // 请求的超时时间
+  dataType: 'text', // 请求的数据格式，默认为text
+  data: null, // 请求的参数，默认为空
+  headers: {}, // 请求头，默认为空
+  onprogress: function () {}, // 从服务器下载数据的回调
+  onuploadprogress: function () {}, // 处理上传文件到服务器的回调
+  xhr: null // 允许函数外部创建xhr传入，但是必须不能是使用过的
+};
+
+function _ajax(paramOptions) {
+  let options = {};
+  for (const key in ajaxDefaultOptions) {
+    options[key] = ajaxDefaultOptions[key];
+  }
+  // 如果传入的是否异步与默认值相同，就使用默认值，否则使用传入的参数
+  options.async = paramOptions.async === ajaxDefaultOptions.async ? ajaxDefaultOptions.async : paramOptions.async;
+  // 判断传入的method是否为GET或者POST,否则传入GET 或者可将判断写在promise内部，reject出去
+  options.method = paramOptions.method ? ("GET" || "POST") : "GET";
+  // 如果外部传入xhr，否则创建一个
+  let xhr = options.xhr || new XMLHttpRequest();
+  // return promise对象
+  return new Promise(function (resolve, reject) {
+    xhr.open(options.method, options.url, options.async);
+    xhr.timeout = options.timeout;
+    // 设置请求头
+    for (const key in options.headers) {
+      xhr.setRequestHeader(key, options.headers[key]);
+    }
+    // 注册xhr对象事件
+    xhr.responseType = options.dataType;
+    xhr.onprogress = options.onprogress;
+    xhr.onuploadprogress = options.onuploadprogress;
+    // 开始注册事件
+    // 请求成功
+    xhr.onloadend = function () {
+      if ((xhr.status >= 200 && xhr.status < 300) || xhr.status === 304) {
+        resolve(xhr);
+      } else {
+        reject({
+          errorType: "status_error",
+          xhr: xhr
+        });
+      }
+    };
+    // 请求超时
+    xhr.ontimeout = function () {
+      reject({
+        errorType: "timeout_error",
+        xhr: xhr
+      });
+    }
+    // 请求错误
+    xhr.onerror = function () {
+      reject({
+        errorType: "onerror",
+        xhr: xhr
+      });
+    }
+    // abort错误(未明白，只知道是三种异常中的一种)
+    xhr.onabort = function () {
+      reject({
+        errorType: "onabort",
+        xhr: xhr
+      });
+    }
+    // 捕获异常
+    try {
+      xhr.send(options.data);
+    } catch (error) {
+      reject({
+        errorType: "send_error",
+        error: error
+      });
+    }
+  });
+}
+
+
+// 调用示例
+_ajax({
+  url: 'http://localhost:3000/suc',
+  async: true,
+  onprogress: function (evt) {
+    console.log(evt.position / evt.total);
+  },
+  dataType: 'text/json'
+}).then(
+  function (xhr) {
+    console.log(xhr.response);
+  },
+  function (e) {
+    console.log(JSON.stringify(e))
+  });
+```
+
+# 模拟jsonp
+```
+// foo 函数将会被调用 传入后台返回的数据
+function foo(data) {
+    console.log('通过jsonp获取后台数据:', data);
+    document.getElementById('data').innerHTML = data;
+}
+/**
+ * 通过手动创建一个 script 标签发送一个 get 请求
+ * 并利用浏览器对 <script> 不进行跨域限制的特性绕过跨域问题
+ */
+(function jsonp() {
+    let head = document.getElementsByTagName('head')[0]; // 获取head元素 把js放里面
+    let js = document.createElement('script');
+    js.src = 'http://domain:port/testJSONP?a=1&b=2&callback=foo'; // 设置请求地址
+    head.appendChild(js); // 这一步会发送请求
+})();
+
+// 后台代码
+// 因为是通过 script 标签调用的 后台返回的相当于一个 js 文件
+// 根据前端传入的 callback 的函数名直接调用该函数
+// 返回的是 'foo(3)'
+function testJSONP(callback, a, b) {
+  return `${callback}(${a + b})`;
+}
+
+```
+
+# 模拟发布订阅模式
+```
+class Pubsub {
+    constructor() {
+        this.handles = {}
+    }
+    subscribe(type, handle) {
+        if (!this.handles[type]) {
+            this.handles[type] = []
+        }
+        this.handles[type].push(handle)
+    }
+    unsubscribe(type, handle) {
+        let pos = this.handles[type].indexOf(handle)
+        if (!handle) {
+            this.handles.length = 0
+        } else {
+            ~pos && this.handles[type].splice(pos, 1)
+        }
+    }
+    publish() {
+        let type = Array.prototype.shift.call(arguments)
+        this.handles[type].forEach(handle => {
+            handle.apply(this, arguments)
+        })
+    }
+}
+
+const pub = new Pubsub()
+pub.subscribe('a', function() {console.log('a', ...arguments)})
+pub.publish('a', 1, 2, 3)
+// a 1 2 3
+```
+# 利用setTimeout模拟setInterval
+在`setTimeout`的方法里面又调用了一次`setTimeout`，就可以达到间歇调用的目的。
+那为什么建议使用`setTimeout`代替`setInterval`呢？`setTimeout`式的间歇调用和传统的`setInterval`间歇调用有什么区别呢？
+
+区别在于，`setInterval`间歇调用，是在前一个方法执行前，就开始计时，比如间歇时间是500ms，那么不管那时候前一个方法是否已经执行完毕，都会把后一个方法放入执行的序列中。这时候就会发生一个问题，假如前一个方法的执行时间超过500ms，加入是1000ms，那么就意味着，前一个方法执行结束后，后一个方法马上就会执行，因为此时间歇时间已经超过500ms了。
+> “在开发环境下，很少使用间歇调用（setInterval），原因是后一个间歇调用很可能在前一个间歇调用结束前启动”
+### 简单版
+递归调用setTimeout函数即可
+> 警告：在严格模式下，第5版 ECMAScript (ES5) 禁止使用 arguments.callee()。当一个函数必须调用自身的时候, 避免使用 arguments.callee(), 通过要么给函数表达式一个名字,要么使用一个函数声明.
+
+```
+var executeTimes = 0;
+var intervalTime = 500;
+//var intervalId = null;
+
+
+setTimeout(timeOutFun,intervalTime);
+
+function timeOutFun(){
+    executeTimes++;
+    console.log("doTimeOutFun——"+executeTimes);
+    if(executeTimes<5){
+        setTimeout(arguments.callee,intervalTime);
+    }
+}
+
+
+<!--// 放开下面的注释运行setInterval的Demo-->
+<!--intervalId = setInterval(intervalFun,intervalTime);-->
+<!--function intervalFun(){-->
+<!--    executeTimes++;-->
+<!--    console.log("doIntervalFun——"+executeTimes);-->
+<!--    if(executeTimes==5){-->
+<!--        clearInterval(intervalId);-->
+<!--    }-->
+<!--}-->
+
+```
+### 增强版
+```
+let timeMap = {}
+let id = 0 // 简单实现id唯一
+const mySetInterval = (cb, time) => {
+  let timeId = id // 将timeId赋予id
+  id++ // id 自增实现唯一id
+  let fn = () => {
+    cb()
+    timeMap[timeId] = setTimeout(() => {
+      fn()
+    }, time)
+  }
+  timeMap[timeId] = setTimeout(fn, time)
+  return timeId // 返回timeId
+}
+
+
+const myClearInterval = (id) => {
+  clearTimeout(timeMap[id]) // 通过timeMap[id]获取真正的id
+  delete timeMap[id]
+}
+```
+# Promise的模拟实现
+### Promise的实现
+- **对于实现`then`方法，我们需要考虑到异步的情况**，即当`resolve`在`setTimeout`内执行，`then`时`state`还是`pending`状态，我们就需要在`then`调用的时候，将成功和失败存到各自的数组，一旦`reject`或`resolve`，就调用它们
+- **另外一个要注意的地方是如何实现`then`方法的链式调用**，我们默认在第一个`then`方法里返回一个`promise`，源码中规定了一种方法，就是在`then`方法里面返回一个新的`promise`，称为`promise2：promise2=new Promise((resolve,reject)=>{})`
+    - 将这个`promise2`返回的值传递到下一个`then`中
+    - 如果返回一个普通的值，则将普通的值传递给下一个`then`中
+- **`resolvePromise`函数的实现是一个关键点；`promise`规范中规定`onFullfilled()`或`onRejected()`的值，即第一个`then`返回的值，叫做`x`,判断`x`的函数叫做`resolvePromise`**。具体地， 首先，要看x是不是`promise`。如果是`promise`，则取它的结果，作为新的`promise2`成功的结果如果是普通值，直接作为`promise2`成功的结果所以要比较x和`promise2`，`resolvePromise`的参数有`promise2`（默认返回的`promise`）、`x`（我们自己`return`的对象）、`resolve`、`reject`；`resolve`和`reject`是`promise2`的
+```
+class Promise{
+  constructor(executor){
+    this.state = 'pending';
+    this.value = undefined;
+    this.reason = undefined;
+    this.onResolvedCallbacks = [];
+    this.onRejectedCallbacks = [];
+    let resolve = value => {
+      if (this.state === 'pending') {
+        this.state = 'fulfilled';
+        this.value = value;
+        this.onResolvedCallbacks.forEach(fn=>fn());
+      }
+    };
+    let reject = reason => {
+      if (this.state === 'pending') {
+        this.state = 'rejected';
+        this.reason = reason;
+        this.onRejectedCallbacks.forEach(fn=>fn());
+      }
+    };
+    try{
+      executor(resolve, reject);
+    } catch (err) {
+      reject(err);
+    }
+  }
+  then(onFulfilled,onRejected) {
+    // onFulfilled如果不是函数，就忽略onFulfilled，直接返回value
+    onFulfilled = typeof onFulfilled === 'function' ? onFulfilled : value => value;
+    // onRejected如果不是函数，就忽略onRejected，直接扔出错误
+    onRejected = typeof onRejected === 'function' ? onRejected : err => { throw err };
+    let promise2 = new Promise((resolve, reject) => {
+      if (this.state === 'fulfilled') {
+        // 异步
+        setTimeout(() => {
+          try {
+            let x = onFulfilled(this.value);
+            resolvePromise(promise2, x, resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        }, 0);
+      };
+      if (this.state === 'rejected') {
+        // 异步
+        setTimeout(() => {
+          // 如果报错
+          try {
+            let x = onRejected(this.reason);
+            resolvePromise(promise2, x, resolve, reject);
+          } catch (e) {
+            reject(e);
+          }
+        }, 0);
+      };
+      if (this.state === 'pending') {
+        this.onResolvedCallbacks.push(() => {
+          // 异步
+          setTimeout(() => {
+            try {
+              let x = onFulfilled(this.value);
+              resolvePromise(promise2, x, resolve, reject);
+            } catch (e) {
+              reject(e);
+            }
+          }, 0);
+        });
+        this.onRejectedCallbacks.push(() => {
+          // 异步
+          setTimeout(() => {
+            try {
+              let x = onRejected(this.reason);
+              resolvePromise(promise2, x, resolve, reject);
+            } catch (e) {
+              reject(e);
+            }
+          }, 0)
+        });
+      };
+    });
+    // 返回promise，完成链式
+    return promise2;
+  }
+}
+
+
+
+function resolvePromise(promise2, x, resolve, reject){
+  // 循环引用报错
+  if(x === promise2){
+    // reject报错
+    return reject(new TypeError('Chaining cycle detected for promise'));
+  }
+  // 防止多次调用
+  let called;
+  // x不是null 且x是对象或者函数
+  if (x != null && (typeof x === 'object' || typeof x === 'function')) {
+    try {
+      // A+规定，声明then = x的then方法
+      let then = x.then;
+      // 如果then是函数，就默认是promise了
+      if (typeof then === 'function') { 
+        // 就让then执行 第一个参数是this   后面是成功的回调 和 失败的回调
+        then.call(x, y => {
+          // 成功和失败只能调用一个
+          if (called) return;
+          called = true;
+          // resolve的结果依旧是promise 那就继续解析
+          resolvePromise(promise2, y, resolve, reject);
+        }, err => {
+          // 成功和失败只能调用一个
+          if (called) return;
+          called = true;
+          reject(err);// 失败了就失败了
+        })
+      } else {
+        resolve(x); // 直接成功即可
+      }
+    } catch (e) {
+      // 也属于失败
+      if (called) return;
+      called = true;
+      // 取then出错了那就不要在继续执行了
+      reject(e); 
+    }
+  } else {
+    resolve(x);
+  }
+}
+```
+
+### resolve、reject、race与race方法的实现
+```
+//reject方法
+Promise.reject = function(val){
+  return new Promise((resolve,reject)=>{
+    reject(val)
+  });
+}
+//race方法 
+Promise.race = function(promises){
+  return new Promise((resolve,reject)=>{
+    for(let i=0;i<promises.length;i++){
+      promises[i].then(resolve,reject)
+    };
+  })
+}
+//all方法(获取所有的promise，都执行then，把结果放到数组，一起返回)
+Promise.all = function(promises){
+  let arr = [];
+  let i = 0;
+  function processData(index,data){
+    arr[index] = data;
+    i++;
+    if(i == promises.length){
+      resolve(arr);
+    };
+  };
+  return new Promise((resolve,reject)=>{
+    for(let i=0;i<promises.length;i++){
+      promises[i].then(data=>{
+        processData(i,data);
+      },reject);
+    };
+  });
+}
+```
 
 # github源码地址
 
